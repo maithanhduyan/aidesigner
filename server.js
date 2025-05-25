@@ -86,7 +86,6 @@ app.post('/generate', async (req, res) => {
         const model = req.body.model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
         const temperature = typeof req.body.temperature === 'number' ? req.body.temperature : 0.7;
         const max_tokens = typeof req.body.max_tokens === 'number' ? req.body.max_tokens : 4000;
-        // Lưu prompt vào lịch sử
         let history = [];
         if (fs.existsSync(chatHistoryPath)) {
             try {
@@ -95,47 +94,74 @@ app.post('/generate', async (req, res) => {
                 history = [];
             }
         }
-        // // Gửi cả giao diện hiện tại lên AI
-        // let currentHtml = '';
         try {
             currentHtml = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
         } catch (e) {
             currentHtml = '';
         }
-        const aiPrompt = `Dưới đây là giao diện HTML hiện tại của tôi:
------
-${currentHtml}
------
-Hãy dựa vào giao diện này và yêu cầu sau để thiết kế lại hoặc chỉnh sửa giao diện:
-${userPrompt}`;
-        const response = await axios.post('https://api.together.xyz/v1/chat/completions', {
-            model: model,
-            messages: [
-                {
-                    "role": "system",
-                    "content": systemPrompt
-                },
-                {
-                    "role": "user",
-                    "content": aiPrompt
-                }
-            ],
-            temperature: temperature,
-            max_tokens: max_tokens,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`
-            }
-        });
+        const aiPrompt = `Dưới đây là giao diện HTML hiện tại của tôi:\n-----\n${currentHtml}\n-----\nHãy dựa vào giao diện này và yêu cầu sau để thiết kế lại hoặc chỉnh sửa giao diện:\n${userPrompt}`;
 
-        let htmlContent = response.data.choices[0].message.content;
-        // Lọc chỉ lấy phần html
-        const match = htmlContent.match(htmlRegex);
-        if (match) {
-            htmlContent = match[0];
+        let htmlContent = '';
+        if (model && model.toLowerCase().startsWith('gemini')) {
+            // Call Gemini API
+            const geminiApiKey = process.env.GEMINI_API_KEY;
+            if (!geminiApiKey) {
+                throw new Error('GEMINI_API_KEY environment variable is not set!');
+            }
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+            const geminiBody = {
+                contents: [
+                    {
+                        parts: [
+                            { text: `${systemPrompt}\n${aiPrompt}` }
+                        ]
+                    }
+                ]
+            };
+            const geminiRes = await axios.post(geminiUrl, geminiBody, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            // Gemini response parsing
+            let geminiText = '';
+            if (geminiRes.data && geminiRes.data.candidates && geminiRes.data.candidates[0].content && geminiRes.data.candidates[0].content.parts) {
+                geminiText = geminiRes.data.candidates[0].content.parts.map(p => p.text).join(' ');
+            } else {
+                geminiText = 'Không tìm thấy nội dung HTML hợp lệ.';
+            }
+            const match = geminiText.match(htmlRegex);
+            if (match) {
+                htmlContent = match[0];
+            } else {
+                htmlContent = '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
+            }
         } else {
-            // Nếu không có, trả về thông báo lỗi
-            htmlContent = '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
+            // Together API (default)
+            const response = await axios.post('https://api.together.xyz/v1/chat/completions', {
+                model: model,
+                messages: [
+                    {
+                        "role": "system",
+                        "content": systemPrompt
+                    },
+                    {
+                        "role": "user",
+                        "content": aiPrompt
+                    }
+                ],
+                temperature: temperature,
+                max_tokens: max_tokens,
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`
+                }
+            });
+            htmlContent = response.data.choices[0].message.content;
+            const match = htmlContent.match(htmlRegex);
+            if (match) {
+                htmlContent = match[0];
+            } else {
+                htmlContent = '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
+            }
         }
         // Lưu kết quả vào lịch sử
         history.push({ prompt: userPrompt, model: model, response: htmlContent, timestamp: Date.now() });
@@ -170,4 +196,8 @@ process.on('unhandledRejection', (reason, promise) => {
 if (!process.env.TOGETHER_API_KEY) {
     writeLog('Warning: TOGETHER_API_KEY environment variable is not set!');
     console.warn('Warning: TOGETHER_API_KEY environment variable is not set!');
+}
+if (!process.env.GEMINI_API_KEY) {
+    writeLog('Warning: GEMINI_API_KEY environment variable is not set!');
+    console.warn('Warning: GEMINI_API_KEY environment variable is not set!');
 }
