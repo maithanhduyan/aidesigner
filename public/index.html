@@ -115,13 +115,17 @@
 
     <!-- Control Bar -->
     <div id="controlBar">
+        <!-- UI Framework Select -->
+        <select id="frameworkSelect" class="model-select bg-gray-800 text-cyan-400 border border-cyan-700 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500 transition text-sm mr-2">
+            <option value="tailwind">Tailwind CSS</option>
+            <option value="bootstrap">Bootstrap 5</option>
+        </select>
         <!-- Model Select -->
         <select id="modelSelect" class="model-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500 transition text-sm">
             <option value="deepseek-ai/DeepSeek-V3">DeepSeek V3</option>
             <option value="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free">
                 Llama-3.3-70B
             </option>
-
             <option value="mistralai/Mixtral-8x7B-Instruct-v0.1">Mixtral 8x7B</option>
             <option value="mistralai/Mistral-7B-Instruct-v0.2">Mistral 7B</option>
             <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
@@ -189,10 +193,17 @@
         const temperatureValue = document.getElementById('temperatureValue');
         const maxTokensInput = document.getElementById('maxTokensInput');
         const welcomePanel = document.getElementById('welcomePanel');
+        const frameworkSelect = document.getElementById('frameworkSelect');
 
         // Default settings
         let temperature = 0.7;
         let max_tokens = 4000;
+        let framework = frameworkSelect.value;
+
+        // Framework change event
+        frameworkSelect.addEventListener('change', () => {
+            framework = frameworkSelect.value;
+        });
 
         // Handle form submission
         form.addEventListener('submit', async (e) => {
@@ -216,7 +227,8 @@
                         prompt, 
                         model,
                         temperature,
-                        max_tokens 
+                        max_tokens,
+                        framework // gửi framework lên server
                     })
                 });
 
