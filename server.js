@@ -90,6 +90,19 @@ app.post('/generate', async (req, res) => {
                 history = [];
             }
         }
+        // Gửi cả giao diện hiện tại lên AI
+        let currentHtml = '';
+        try {
+            currentHtml = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
+        } catch (e) {
+            currentHtml = '';
+        }
+        const aiPrompt = `Dưới đây là giao diện HTML hiện tại của tôi:
+-----
+${currentHtml}
+-----
+Hãy dựa vào giao diện này và yêu cầu sau để thiết kế lại hoặc chỉnh sửa giao diện:
+${userPrompt}`;
         const response = await axios.post('https://api.together.xyz/v1/chat/completions', {
             model: model,
             messages: [
@@ -99,7 +112,7 @@ app.post('/generate', async (req, res) => {
                 },
                 {
                     "role": "user",
-                    "content": userPrompt
+                    "content": aiPrompt
                 }
             ],
             temperature: temperature,
