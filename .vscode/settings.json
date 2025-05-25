@@ -1,0 +1,14 @@
+{
+  // Cấu hình cho Material Icon Theme
+  "workbench.iconTheme": "material-icon-theme",
+  // "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.rulers": [80],
+  // "terminal.integrated.defaultProfile.windows": "Command Prompt",
+  "color-highlight.markRuler": true,
+  "files.encoding": "utf8"
+}

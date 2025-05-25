@@ -1,16 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Design Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
         body {
             overflow: hidden;
-            font-family: 'Inter', sans-serif;
+            font-family: "Inter", sans-serif;
         }
+
         #aiFrame {
             position: fixed;
             top: 0;
@@ -20,6 +22,7 @@
             border: none;
             z-index: 10;
         }
+
         #controlBar {
             position: fixed;
             bottom: 0;
@@ -29,38 +32,44 @@
             backdrop-filter: blur(10px);
             padding: 2px 2px 2px 2px;
             z-index: 100;
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.2);
             display: flex;
             align-items: center;
             gap: 12px;
             transition: all 0.3s ease;
         }
+
         #controlBar:hover {
             background: rgba(15, 23, 42, 0.98);
         }
+
         #typingIndicator {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             padding: 8px 16px;
             border-radius: 20px;
             color: white;
             font-size: 14px;
             display: none;
         }
+
         .model-select {
             flex: 0 0 200px;
         }
+
         .prompt-input {
             flex: 1;
             min-width: 0;
         }
+
         .settings-btn {
             flex: 0 0 40px;
         }
+
         .settings-modal {
             position: fixed;
             bottom: 80px;
@@ -70,40 +79,82 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-900 text-gray-100">
     <!-- Fullscreen Iframe -->
-    <iframe id="aiFrame" class="hidden" srcdoc="<html><body style='background:#0f172a; display:flex; justify-content:center; align-items:center; color:#e2e8f0; font-family:sans-serif;'><div style='text-align:center;'><h1 style='font-size:2rem; margin-bottom:1rem;'>AI Design Preview</h1><p>Describe your design in the input below</p></div></body></html>"></iframe>
-
+    <iframe id="aiFrame" title="output" srcdoc="
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My app</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <meta charset='utf-8'>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        height: 100dvh;
+        font-family: 'Arial', sans-serif;
+        text-align: center;
+      }
+      .arrow {
+        position: absolute;
+        bottom: 32px;
+        left: 0px;
+        width: 100px;
+        transform: rotate(30deg);
+      }
+      h1 {
+        font-size: 50px;
+      }
+      h1 span {
+        color: #acacac;
+        font-size: 32px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <span>I'm ready to work,</span><br />
+      Ask me anything.
+    </h1>
+    <img src='' class='arrow' />
+    <script></script>
+  </body>
+</html>"></iframe>
     <!-- Control Bar -->
     <div id="controlBar">
         <!-- Model Select -->
-        <select id="modelSelect" class="model-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500 transition text-sm">
+        <select id="modelSelect"
+            class="model-select bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500 transition text-sm">
             <option value="deepseek-ai/DeepSeek-V3">deepseek-ai/DeepSeek-V3</option>
-            <option value="mistralai/Mixtral-8x7B-Instruct-v0.1">Mixtral 8x7B</option>
+            <option value="mistralai/Mixtral-8x7B-Instruct-v0.1">
+                Mixtral 8x7B
+            </option>
             <option value="mistralai/Mistral-7B-Instruct-v0.2">Mistral 7B</option>
-            <option value="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free">Llama-3.3-70B-Instruct-Turbo-Free</option>
+            <option value="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free">
+                Llama-3.3-70B-Instruct-Turbo-Free
+            </option>
         </select>
 
         <!-- Prompt Input -->
         <form id="promptForm" class="prompt-input flex items-center">
-            <input 
-                type="text" 
-                id="promptInput"
-                autocomplete="off"
-                placeholder="Describe your design (e.g. 'Modern dashboard with dark theme')" 
-                class="w-full p-3 bg-gray-800 outline-none text-gray-200 placeholder-gray-500 rounded-l-lg border border-gray-700 focus:border-cyan-500 transition"
-            >
-            <button 
-                type="submit"
+            <input type="text" id="promptInput" autocomplete="off"
+                placeholder="Describe your design (e.g. 'Modern dashboard with dark theme')"
+                class="w-full p-3 bg-gray-800 outline-none text-gray-200 placeholder-gray-500 rounded-l-lg border border-gray-700 focus:border-cyan-500 transition" />
+            <button type="submit"
                 class="px-4 h-full bg-gradient-to-r from-cyan-600 to-blue-700 text-white font-medium hover:opacity-90 transition rounded-r-lg"
-                title="Generate"
-            >
+                title="Generate">
                 <i class="fas fa-bolt"></i>
             </button>
         </form>
 
         <!-- Settings Button -->
-        <button id="settingsBtn" class="settings-btn bg-gray-800 hover:bg-gray-700 text-cyan-400 rounded-lg p-2 focus:outline-none" title="Settings">
+        <button id="settingsBtn"
+            class="settings-btn bg-gray-800 hover:bg-gray-700 text-cyan-400 rounded-lg p-2 focus:outline-none"
+            title="Settings">
             <i class="fas fa-sliders-h"></i>
         </button>
     </div>
@@ -111,17 +162,24 @@
     <!-- Settings Modal -->
     <div id="settingsModal" class="settings-modal bg-gray-900 rounded-xl p-4 shadow-2xl border border-cyan-800 hidden">
         <div class="flex justify-between items-center mb-3">
-            <h3 class="font-bold text-cyan-400"><i class="fas fa-cog mr-2"></i>Settings</h3>
-            <button id="closeSettings" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            <h3 class="font-bold text-cyan-400">
+                <i class="fas fa-cog mr-2"></i>Settings
+            </h3>
+            <button id="closeSettings" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
         <div class="space-y-4">
             <div>
-                <label class="block text-sm text-gray-300 mb-1">Temperature: <span id="temperatureValue">0.7</span></label>
-                <input type="range" min="0" max="2" step="0.1" value="0.7" id="temperatureInput" class="w-full accent-cyan-500">
+                <label class="block text-sm text-gray-300 mb-1">Temperature: <span
+                        id="temperatureValue">0.7</span></label>
+                <input type="range" min="0" max="2" step="0.1" value="0.7" id="temperatureInput"
+                    class="w-full accent-cyan-500" />
             </div>
             <div>
                 <label class="block text-sm text-gray-300 mb-1">Max Tokens</label>
-                <input type="number" min="500" max="8000" step="100" value="4000" id="maxTokensInput" class="w-full bg-gray-800 text-gray-200 rounded px-2 py-1 border border-gray-700">
+                <input type="number" min="500" max="13000" step="100" value="4000" id="maxTokensInput"
+                    class="w-full bg-gray-800 text-gray-200 rounded px-2 py-1 border border-gray-700" />
             </div>
         </div>
     </div>
@@ -133,49 +191,49 @@
 
     <script>
         // DOM Elements
-        const form = document.getElementById('promptForm');
-        const input = document.getElementById('promptInput');
-        const aiFrame = document.getElementById('aiFrame');
-        const typingIndicator = document.getElementById('typingIndicator');
-        const modelSelect = document.getElementById('modelSelect');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const settingsModal = document.getElementById('settingsModal');
-        const closeSettings = document.getElementById('closeSettings');
-        const temperatureInput = document.getElementById('temperatureInput');
-        const temperatureValue = document.getElementById('temperatureValue');
-        const maxTokensInput = document.getElementById('maxTokensInput');
+        const form = document.getElementById("promptForm");
+        const input = document.getElementById("promptInput");
+        const aiFrame = document.getElementById("aiFrame");
+        const typingIndicator = document.getElementById("typingIndicator");
+        const modelSelect = document.getElementById("modelSelect");
+        const settingsBtn = document.getElementById("settingsBtn");
+        const settingsModal = document.getElementById("settingsModal");
+        const closeSettings = document.getElementById("closeSettings");
+        const temperatureInput = document.getElementById("temperatureInput");
+        const temperatureValue = document.getElementById("temperatureValue");
+        const maxTokensInput = document.getElementById("maxTokensInput");
 
         // Default settings
         let temperature = 0.7;
         let max_tokens = 4000;
 
         // Handle form submission
-        form.addEventListener('submit', async (e) => {
+        form.addEventListener("submit", async (e) => {
             e.preventDefault();
             const prompt = input.value.trim();
             if (!prompt) return;
             const model = modelSelect.value;
 
             // Show loading state
-            typingIndicator.style.display = 'flex';
-            aiFrame.classList.remove('hidden');
+            typingIndicator.style.display = "flex";
+            aiFrame.classList.remove("hidden");
 
             try {
-                const response = await fetch('/generate', {
-                    method: 'POST',
+                const response = await fetch("/generate", {
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
+                        "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ 
-                        prompt, 
+                    body: JSON.stringify({
+                        prompt,
                         model,
                         temperature,
-                        max_tokens 
-                    })
+                        max_tokens,
+                    }),
                 });
 
-                if (!response.ok) throw new Error('Design generation failed');
-                
+                if (!response.ok) throw new Error("Design generation failed");
+
                 const html = await response.text();
                 aiFrame.srcdoc = html;
             } catch (error) {
@@ -187,16 +245,16 @@
                         </body>
                     </html>`;
             } finally {
-                typingIndicator.style.display = 'none';
-                input.value = '';
+                typingIndicator.style.display = "none";
+                input.value = "";
             }
         });
 
         // Submit on Enter
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                form.dispatchEvent(new Event('submit'));
+                form.dispatchEvent(new Event("submit"));
             }
         });
 
@@ -204,29 +262,30 @@
         input.focus();
 
         // Settings controls
-        settingsBtn.addEventListener('click', () => {
-            settingsModal.classList.toggle('hidden');
+        settingsBtn.addEventListener("click", () => {
+            settingsModal.classList.toggle("hidden");
         });
 
-        closeSettings.addEventListener('click', () => {
-            settingsModal.classList.add('hidden');
+        closeSettings.addEventListener("click", () => {
+            settingsModal.classList.add("hidden");
         });
 
-        temperatureInput.addEventListener('input', () => {
+        temperatureInput.addEventListener("input", () => {
             temperature = parseFloat(temperatureInput.value);
             temperatureValue.textContent = temperature;
         });
 
-        maxTokensInput.addEventListener('input', () => {
+        maxTokensInput.addEventListener("input", () => {
             max_tokens = parseInt(maxTokensInput.value);
         });
 
         // Close modal when clicking outside
-        document.addEventListener('click', (e) => {
+        document.addEventListener("click", (e) => {
             if (!settingsModal.contains(e.target) && e.target !== settingsBtn) {
-                settingsModal.classList.add('hidden');
+                settingsModal.classList.add("hidden");
             }
         });
     </script>
 </body>
+
 </html>

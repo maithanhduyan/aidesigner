@@ -8,15 +8,19 @@ const chatHistoryPath = __dirname + '/public/chat-history.json';
 const logFilePath = __dirname + '/server.log';
 const errorLogFilePath = __dirname + '/error.log';
 
-app.use(cors());
+app.use(cors("*")); // Cho phép tất cả nguồn gốc
+app.use(express.urlencoded({ extended: true })); // Phân tích dữ liệu URL-encoded
 app.use(express.json());
 app.use(express.static('public'));
 
 const systemPrompt = `ONLY USE HTML, CSS AND JAVASCRIPT. 
-If you want to use ICON make sure to import the library first. 
+If you want to use any library, make sure to import it first.
+If you want to use any icon, make sure to import the library first.
 Try to create the best UI possible by using only HTML, CSS and JAVASCRIPT. 
 Use as much as you can TailwindCSS for the CSS, if you can't do something with TailwindCSS, then use custom CSS (make sure to import <script src="https://cdn.tailwindcss.com"></script> in the head). 
-This is a sample page:
+Also, try to ellaborate as much as you can, to create something unique. 
+**ATTENTION: Reply html formatted only.**
+**Template**:  
 <!DOCTYPE html>
 <html>
   <head>
@@ -54,13 +58,12 @@ This is a sample page:
       <span>I'm ready to work,</span><br />
       Ask me anything.
     </h1>
-    <img src="https://enzostvs-deepsite.hf.space/arrow.svg" class="arrow" />
+    <img src="" class="arrow" />
     <script></script>
   </body>
 </html>
 
-Also, try to ellaborate as much as you can, to create something unique. 
-**ATTENTION: Reply in one file html formatted text only.**`;
+`;
 
 const htmlRegex = /<\s*!DOCTYPE\s+html[\s\S]*?<\/html>/i;
 
@@ -74,6 +77,8 @@ function writeErrorLog(message) {
     fs.appendFile(errorLogFilePath, logMsg, err => { /* Không làm chậm hệ thống, không throw */ });
 }
 
+// Gửi cả giao diện hiện tại lên AI
+let currentHtml = '';
 app.post('/generate', async (req, res) => {
     try {
         writeLog(`POST /generate | prompt: ${JSON.stringify(req.body.prompt)}, model: ${req.body.model}`);
@@ -90,8 +95,8 @@ app.post('/generate', async (req, res) => {
                 history = [];
             }
         }
-        // Gửi cả giao diện hiện tại lên AI
-        let currentHtml = '';
+        // // Gửi cả giao diện hiện tại lên AI
+        // let currentHtml = '';
         try {
             currentHtml = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
         } catch (e) {
