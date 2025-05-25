@@ -13,15 +13,7 @@ app.use(express.urlencoded({ extended: true })); // Phân tích dữ liệu URL-
 app.use(express.json());
 app.use(express.static('public'));
 
-// Default TailwindCSS UI generation prompt
-let systemPrompt = `ONLY USE HTML, CSS AND JAVASCRIPT. 
-If you want to use any library, make sure to import it first.
-If you want to use any icon, make sure to import the library first.
-Try to create the best UI possible by using only HTML, CSS and JAVASCRIPT. 
-Use as much as you can TailwindCSS for the CSS, if you can't do something with TailwindCSS, then use custom CSS (make sure to import <script src="https://cdn.tailwindcss.com"></script> in the head). 
-Also, try to ellaborate as much as you can, to create something unique. 
-**ATTENTION: Reply html formatted only.**
-**Template**:  
+let tailwind_page= `
 <!DOCTYPE html>
 <html>
   <head>
@@ -63,18 +55,9 @@ Also, try to ellaborate as much as you can, to create something unique.
     <script></script>
   </body>
 </html>
-
 `;
 
-// Bootstrap 5 UI generation prompt
-const bootstrapSystemPrompt = `ONLY USE HTML, CSS (Bootstrap 5) AND JAVASCRIPT. 
-Make sure to include all required Bootstrap 5 CDN links in the head section.
-If you need icons, use Bootstrap Icons (include the CDN).
-Create responsive, modern designs using Bootstrap 5's utility classes and components.
-Use custom CSS only when absolutely necessary (place in <style> tags in head).
-For JavaScript, prefer vanilla JS but you may include jQuery if needed for Bootstrap components.
-
-**Bootstrap 5 Template Starter**:
+let bootstrap_page = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -116,6 +99,33 @@ For JavaScript, prefer vanilla JS but you may include jQuery if needed for Boots
     </script>
 </body>
 </html>
+`;
+
+// Default TailwindCSS UI generation prompt
+let systemPrompt = `
+ONLY USE HTML, CSS AND JAVASCRIPT. 
+If you want to use any library, make sure to import it first.
+If you want to use any icon, make sure to import the library first.
+Try to create the best UI possible by using only HTML, CSS and JAVASCRIPT. 
+Use as much as you can TailwindCSS for the CSS, if you can't do something with TailwindCSS, then use custom CSS (make sure to import <script src="https://cdn.tailwindcss.com"></script> in the head). 
+Also, try to ellaborate as much as you can, to create something unique. 
+
+**Template**:
+${tailwind_page}
+
+**ATTENTION: Reply html formatted only.**
+`;
+
+// Bootstrap 5 UI generation prompt
+const bootstrapSystemPrompt = `ONLY USE HTML, CSS (Bootstrap 5) AND JAVASCRIPT. 
+Make sure to include all required Bootstrap 5 CDN links in the head section.
+If you need icons, use Bootstrap Icons (include the CDN).
+Create responsive, modern designs using Bootstrap 5's utility classes and components.
+Use custom CSS only when absolutely necessary (place in <style> tags in head).
+For JavaScript, prefer vanilla JS but you may include jQuery if needed for Bootstrap components.
+
+**Template**:
+${bootstrap_page}
 
 **Key Guidelines**:
 1. Always use proper Bootstrap 5 grid system (container > row > col)
@@ -127,7 +137,7 @@ For JavaScript, prefer vanilla JS but you may include jQuery if needed for Boots
 7. Make the UI accessible (proper aria labels, semantic HTML)
 8. Include all required CDNs in the head section
 
-**Response Format**: Return complete HTML documents only, properly formatted with all required Bootstrap dependencies.
+**ATTENTION: Reply html formatted only.**
 `;
 
 const htmlRegex = /<\s*!DOCTYPE\s+html[\s\S]*?<\/html>/i;
@@ -142,99 +152,77 @@ function writeErrorLog(message) {
     fs.appendFile(errorLogFilePath, logMsg, err => { /* Không làm chậm hệ thống, không throw */ });
 }
 
-// Gửi cả giao diện hiện tại lên AI
-let currentHtml = '';
+// --- AI PROVIDER HANDLERS ---
+async function callTogetherAI({ model, systemPrompt, aiPrompt, temperature, max_tokens }) {
+    const response = await axios.post('https://api.together.xyz/v1/chat/completions', {
+        model: model,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: aiPrompt }
+        ],
+        temperature: temperature,
+        max_tokens: max_tokens,
+    }, {
+        headers: {
+            'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`
+        }
+    });
+    return response.data.choices[0].message.content;
+}
+
+async function callGemini({ model, systemPrompt, aiPrompt }) {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) throw new Error('GEMINI_API_KEY environment variable is not set!');
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+    const geminiBody = {
+        contents: [
+            { parts: [ { text: `${systemPrompt}\n${aiPrompt}` } ] }
+        ]
+    };
+    const geminiRes = await axios.post(geminiUrl, geminiBody, {
+        headers: { 'Content-Type': 'application/json' }
+    });
+    if (geminiRes.data && geminiRes.data.candidates && geminiRes.data.candidates[0].content && geminiRes.data.candidates[0].content.parts) {
+        return geminiRes.data.candidates[0].content.parts.map(p => p.text).join(' ');
+    }
+    return 'Không tìm thấy nội dung HTML hợp lệ.';
+}
+
+function getSystemPrompt(framework) {
+    if (framework === 'bootstrap') return bootstrapSystemPrompt;
+    return systemPrompt;
+}
+
+function extractHtmlOnly(text) {
+    const match = text.match(htmlRegex);
+    if (match) return match[0];
+    return '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
+}
+
+// --- MAIN GENERATION ROUTE ---
 app.post('/generate', async (req, res) => {
     try {
         writeLog(`POST /generate | prompt: ${JSON.stringify(req.body.prompt)}, model: ${req.body.model}, framework: ${req.body.framework}`);
         const userPrompt = req.body.prompt;
         const model = req.body.model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
         const framework = req.body.framework || 'tailwind';
-        let systemPromptToUse = systemPrompt;
-        if (framework === 'bootstrap') {
-            systemPromptToUse = bootstrapSystemPrompt;
-        }
+        const systemPromptToUse = getSystemPrompt(framework);
         const temperature = typeof req.body.temperature === 'number' ? req.body.temperature : 0.7;
         const max_tokens = typeof req.body.max_tokens === 'number' ? req.body.max_tokens : 4000;
         let history = [];
         if (fs.existsSync(chatHistoryPath)) {
-            try {
-                history = JSON.parse(fs.readFileSync(chatHistoryPath, 'utf8'));
-            } catch (e) {
-                history = [];
-            }
+            try { history = JSON.parse(fs.readFileSync(chatHistoryPath, 'utf8')); } catch (e) { history = []; }
         }
-        try {
-            currentHtml = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
-        } catch (e) {
-            currentHtml = '';
-        }
-        const aiPrompt = `Dưới đây là giao diện HTML hiện tại của tôi:\n-----\n${currentHtml}\n-----\nHãy dựa vào giao diện này và yêu cầu sau để thiết kế lại hoặc chỉnh sửa giao diện:\n${userPrompt}`;
+        const aiPrompt = `Design a website with:\n${userPrompt}`;
 
         let htmlContent = '';
         if (model && model.toLowerCase().startsWith('gemini')) {
-            // Call Gemini API
-            const geminiApiKey = process.env.GEMINI_API_KEY;
-            if (!geminiApiKey) {
-                throw new Error('GEMINI_API_KEY environment variable is not set!');
-            }
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
-            const geminiBody = {
-                contents: [
-                    {
-                        parts: [
-                            { text: `${systemPromptToUse}\n${aiPrompt}` }
-                        ]
-                    }
-                ]
-            };
-            const geminiRes = await axios.post(geminiUrl, geminiBody, {
-                headers: { 'Content-Type': 'application/json' }
-            });
-            // Gemini response parsing
-            let geminiText = '';
-            if (geminiRes.data && geminiRes.data.candidates && geminiRes.data.candidates[0].content && geminiRes.data.candidates[0].content.parts) {
-                geminiText = geminiRes.data.candidates[0].content.parts.map(p => p.text).join(' ');
-            } else {
-                geminiText = 'Không tìm thấy nội dung HTML hợp lệ.';
-            }
-            const match = geminiText.match(htmlRegex);
-            if (match) {
-                htmlContent = match[0];
-            } else {
-                htmlContent = '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
-            }
+            htmlContent = await callGemini({ model, systemPrompt: systemPromptToUse, aiPrompt });
         } else {
-            // Together API (default)
-            const response = await axios.post('https://api.together.xyz/v1/chat/completions', {
-                model: model,
-                messages: [
-                    {
-                        "role": "system",
-                        "content": systemPromptToUse
-                    },
-                    {
-                        "role": "user",
-                        "content": aiPrompt
-                    }
-                ],
-                temperature: temperature,
-                max_tokens: max_tokens,
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`
-                }
-            });
-            htmlContent = response.data.choices[0].message.content;
-            const match = htmlContent.match(htmlRegex);
-            if (match) {
-                htmlContent = match[0];
-            } else {
-                htmlContent = '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
-            }
+            htmlContent = await callTogetherAI({ model, systemPrompt: systemPromptToUse, aiPrompt, temperature, max_tokens });
         }
-        // Lưu kết quả vào lịch sử
-        history.push({ prompt: userPrompt, model: model, response: htmlContent, timestamp: Date.now() });
+        htmlContent = extractHtmlOnly(htmlContent);
+        history.push({ prompt: userPrompt, model: model, framework, response: htmlContent, timestamp: Date.now() });
         fs.writeFileSync(chatHistoryPath, JSON.stringify(history, null, 2));
         res.set('Content-Type', 'text/html');
         res.send(htmlContent);
