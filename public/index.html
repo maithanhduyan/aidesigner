@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI UI Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      iframe {
+        width: 100%;
+        height: 80vh;
+        border: 2px solid #334155;
+        border-radius: 0.5rem;
+        background: white;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto space-y-6">
+      <!-- Header -->
+      <div class="text-center">
+        <h1 class="text-3xl font-bold text-amber-500 mb-2">
+          <i class="fas fa-magic mr-2"></i>AI UI Generator
+        </h1>
+        <p class="text-gray-400">Describe your UI and see it come to life</p>
+      </div>
+      <!-- Input Section -->
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <form id="promptForm" class="space-y-4">
+          <div class="flex gap-4">
+            <input
+              type="text"
+              id="promptInput"
+              placeholder="Describe your UI (e.g., 'A dashboard with statistics cards and a chart')"
+              class="flex-1 p-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:outline-none focus:border-amber-500"
+              required
+            />
+            <button
+              type="submit"
+              class="px-6 py-3 bg-amber-600 hover:bg-amber-700 rounded-lg font-semibold transition-colors flex items-center"
+            >
+              <i class="fas fa-wand-magic-sparkles mr-2"></i>Generate
+            </button>
+          </div>
+
+          <div class="flex items-center text-gray-400 text-sm">
+            <i class="fas fa-lightbulb mr-2"></i>
+            Tip: Be specific about colors, layout, and components you want
+          </div>
+        </form>
+      </div>
+
+      <!-- Result Section -->
+      <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-amber-500">
+            <i class="fas fa-code mr-2"></i>Generated UI
+          </h2>
+          <button
+            onclick="refreshIframe()"
+            class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+          >
+            <i class="fas fa-rotate-right mr-2"></i>Refresh View
+          </button>
+        </div>
+
+        <!-- Iframe Container -->
+        <div id="resultContainer" class="relative">
+          <div
+            id="loading"
+            class="hidden absolute inset-0 bg-gray-800 bg-opacity-90 flex items-center justify-center rounded-lg"
+          >
+            <div class="text-amber-500 text-center">
+              <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+              <p class="font-semibold">Generating your UI...</p>
+            </div>
+          </div>
+          <iframe
+            id="previewFrame"
+            srcdoc="<html><body style='background:#0a0a0a; display:flex; justify-content:center; align-items:center; color:white;'>👈 Your generated UI will appear here</body></html>"
+          ></iframe>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const form = document.getElementById("promptForm");
+      const loading = document.getElementById("loading");
+      const previewFrame = document.getElementById("previewFrame");
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        const prompt = document.getElementById("promptInput").value;
+
+        try {
+          loading.classList.remove("hidden");
+          const response = await fetch("/generate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ prompt }),
+          });
+
+          if (!response.ok) throw new Error("Generation failed");
+
+          const html = await response.text();
+          previewFrame.srcdoc = html;
+        } catch (error) {
+          previewFrame.srcdoc = `<html><body style="background:#0a0a0a; color:white; padding:2rem;"><h1>Error:</h1><p>${error.message}</p></body></html>`;
+        } finally {
+          loading.classList.add("hidden");
+        }
+      }
+
+      function refreshIframe() {
+        previewFrame.contentWindow.location.reload();
+      }
+
+      form.addEventListener("submit", handleSubmit);
+    </script>
+  </body>
+</html>
