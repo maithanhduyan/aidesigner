@@ -6,6 +6,7 @@ const app = express();
 const port = 3000;
 const chatHistoryPath = __dirname + '/public/chat-history.json';
 const logFilePath = __dirname + '/server.log';
+const errorLogFilePath = __dirname + '/error.log';
 
 app.use(cors());
 app.use(express.json());
@@ -68,10 +69,18 @@ function writeLog(message) {
     fs.appendFile(logFilePath, logMsg, err => { /* Không làm chậm hệ thống, không throw */ });
 }
 
+function writeErrorLog(message) {
+    const logMsg = `[${new Date().toISOString()}] ${message}\n`;
+    fs.appendFile(errorLogFilePath, logMsg, err => { /* Không làm chậm hệ thống, không throw */ });
+}
+
 app.post('/generate', async (req, res) => {
     try {
-        writeLog(`POST /generate | prompt: ${JSON.stringify(req.body.prompt)}`);
+        writeLog(`POST /generate | prompt: ${JSON.stringify(req.body.prompt)}, model: ${req.body.model}`);
         const userPrompt = req.body.prompt;
+        const model = req.body.model || "mistralai/Mixtral-8x7B-Instruct-v0.1";
+        const temperature = typeof req.body.temperature === 'number' ? req.body.temperature : 0.7;
+        const max_tokens = typeof req.body.max_tokens === 'number' ? req.body.max_tokens : 4000;
         // Lưu prompt vào lịch sử
         let history = [];
         if (fs.existsSync(chatHistoryPath)) {
@@ -82,7 +91,7 @@ app.post('/generate', async (req, res) => {
             }
         }
         const response = await axios.post('https://api.together.xyz/v1/chat/completions', {
-            model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            model: model,
             messages: [
                 {
                     "role": "system",
@@ -93,8 +102,8 @@ app.post('/generate', async (req, res) => {
                     "content": userPrompt
                 }
             ],
-            temperature: 0.7,
-            max_tokens: 3000,
+            temperature: temperature,
+            max_tokens: max_tokens,
         }, {
             headers: {
                 'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`
@@ -111,12 +120,13 @@ app.post('/generate', async (req, res) => {
             htmlContent = '<!DOCTYPE html><html><body><h2>Không tìm thấy nội dung HTML hợp lệ.</h2></body></html>';
         }
         // Lưu kết quả vào lịch sử
-        history.push({ prompt: userPrompt, response: htmlContent, timestamp: Date.now() });
+        history.push({ prompt: userPrompt, model: model, response: htmlContent, timestamp: Date.now() });
         fs.writeFileSync(chatHistoryPath, JSON.stringify(history, null, 2));
         res.set('Content-Type', 'text/html');
         res.send(htmlContent);
         writeLog('POST /generate | success');
     } catch (error) {
+        writeErrorLog(`POST /generate | error: ${error.stack || error.message}`);
         writeLog(`POST /generate | error: ${error.message}`);
         res.status(500).send('Error generating HTML');
     }
@@ -130,6 +140,13 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     writeLog(`Server started at http://localhost:${port}`);
     console.log(`Server running at http://localhost:${port}`);
+});
+
+process.on('uncaughtException', (err) => {
+    writeErrorLog(`uncaughtException: ${err.stack || err.message}`);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    writeErrorLog(`unhandledRejection: ${reason}`);
 });
 
 if (!process.env.TOGETHER_API_KEY) {
