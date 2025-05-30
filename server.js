@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const fs = require('fs');
+const path = require('path'); // Add path module for file operations
 const app = express();
 const port = 3000;
 const chatHistoryPath = __dirname + '/public/chat-history.json';
@@ -224,9 +225,16 @@ app.post('/generate', async (req, res) => {
         htmlContent = extractHtmlOnly(htmlContent);
         history.push({ prompt: userPrompt, model: model, framework, response: htmlContent, timestamp: Date.now() });
         fs.writeFileSync(chatHistoryPath, JSON.stringify(history, null, 2));
+
+        // Save HTML content to a file in the public directory
+        const timestamp = new Date().toISOString().replace(/[-:T]/g, '').split('.')[0];
+        const fileName = `${timestamp}.html`;
+        const filePath = path.join(__dirname, 'public', fileName);
+        fs.writeFileSync(filePath, htmlContent);
+
         res.set('Content-Type', 'text/html');
         res.send(htmlContent);
-        writeLog('POST /generate | success');
+        writeLog(`POST /generate | success | saved to ${fileName}`);
     } catch (error) {
         writeErrorLog(`POST /generate | error: ${error.stack || error.message}`);
         writeLog(`POST /generate | error: ${error.message}`);
